@@ -42,7 +42,7 @@ type
   OsPlatform* {.pure.} = enum ## the OS this program will run on.
     none, dos, windows, os2, linux, morphos, skyos, solaris,
     irix, netbsd, freebsd, openbsd, aix, palmos, qnx, amiga,
-    atari, netware, macos, macosx, haiku, android, js, standalone, nintendoswitch
+    atari, netware, macos, macosx, haiku, android, js, standalone, nintendoswitch, orbis
 
 const
   targetOS* = when defined(windows): OsPlatform.windows
@@ -69,6 +69,7 @@ const
               elif defined(js): OsPlatform.js
               elif defined(standalone): OsPlatform.standalone
               elif defined(nintendoswitch): OsPlatform.nintendoswitch
+              elif defined(orbis): OsPlatform.orbis
               else: OsPlatform.none
     ## the OS this program will run on.
 
