@@ -1,5 +1,4 @@
 #
-#
 #            Nim's Runtime Library
 #        (c) Copyright 2015 Dominik Picheta
 #
@@ -248,12 +247,12 @@ proc createNativeSocket*(domain: cint, sockType: cint, protocol: cint,
   ## Use this overload if one of the enums specified above does
   ## not contain what you need.
   let sockType =
-    when (defined(linux) or defined(bsd)) and not defined(nimdoc):
+    when not defined(orbis) and (defined(linux) or defined(bsd)) and not defined(nimdoc):
       if inheritable: sockType and not SOCK_CLOEXEC else: sockType or SOCK_CLOEXEC
     else:
       sockType
   result = socket(domain, sockType, protocol)
-  when declared(setInheritable) and not (defined(linux) or defined(bsd)):
+  when declared(setInheritable) and not (defined(linux) or defined(bsd) or defined(orbis)):
     if not setInheritable(result, inheritable):
       close result
       return osInvalidSocket
@@ -815,12 +814,12 @@ proc accept*(fd: SocketHandle, inheritable = defined(nimInheritHandles)): (Socke
   var sockAddress: SockAddr
   var addrLen = sizeof(sockAddress).SockLen
   var sock =
-    when (defined(linux) or defined(bsd)) and not defined(nimdoc):
+    when not defined(orbis) and (defined(linux) or defined(bsd)) and not defined(nimdoc):
       accept4(fd, addr(sockAddress), addr(addrLen),
               if inheritable: 0 else: SOCK_CLOEXEC)
     else:
       accept(fd, addr(sockAddress), addr(addrLen))
-  when declared(setInheritable) and not (defined(linux) or defined(bsd)):
+  when declared(setInheritable) and not (defined(linux) or defined(bsd) or defined(orbis)):
     if not setInheritable(sock, inheritable):
       close sock
       sock = osInvalidSocket

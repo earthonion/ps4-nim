@@ -105,6 +105,18 @@ proc getMonoTime*(): MonoTime {.tags: [TimeEffect].} =
   elif defined(zephyr):
     let ticks = k_ticks_to_ns_floor64(k_uptime_ticks())
     result = MonoTime(ticks: ticks)
+  elif defined(orbis):
+#[
+    var ts: Timespec
+    discard clock_gettime(CLOCK_REALTIME, ts)
+    result = MonoTime(ticks: ts.tv_sec.int64 * 1_000_000_000 +
+      ts.tv_nsec.int64)
+]#
+    proc sceKernelGetProcessTimeCounter() : uint64 {.importc, header: "<orbis/libkernel.h>"}
+    proc sceKernelGetProcessTimeCounterFrequency() : uint64 {.importc, header: "<orbis/libkernel.h>"}
+    let time = float(sceKernelGetProcessTimeCounter()) * float(1_000_000_000) / 
+               float(sceKernelGetProcessTimeCounterFrequency());
+    result = MonoTime(ticks: int64(time))
   elif defined(posix):
     var ts: Timespec
     discard clock_gettime(CLOCK_MONOTONIC, ts)

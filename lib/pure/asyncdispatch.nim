@@ -1596,13 +1596,13 @@ else:
       var sockAddress: Sockaddr_storage
       var addrLen = sizeof(sockAddress).SockLen
       var client =
-        when declared(accept4):
+        when declared(accept4) and not defined(orbis):
           accept4(sock.SocketHandle, cast[ptr SockAddr](addr(sockAddress)),
                   addr(addrLen), if inheritable: 0 else: SOCK_CLOEXEC)
         else:
           accept(sock.SocketHandle, cast[ptr SockAddr](addr(sockAddress)),
                  addr(addrLen))
-      when declared(setInheritable) and not declared(accept4):
+      when declared(setInheritable) and not declared(accept4) and not defined(orbis):
         if client != osInvalidSocket and not setInheritable(client, inheritable):
           # Set failure first because close() itself can fail,
           # altering osLastError().

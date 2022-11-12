@@ -152,8 +152,9 @@ proc newAsyncSocket*(fd: AsyncFD, domain: Domain = AF_INET,
   new(result)
   result.fd = fd.SocketHandle
   fd.SocketHandle.setBlocking(false)
-  if not fd.SocketHandle.setInheritable(inheritable):
-    raiseOSError(osLastError())
+  when not defined(orbis):
+    if not fd.SocketHandle.setInheritable(inheritable):
+      raiseOSError(osLastError())
   result.isBuffered = buffered
   result.domain = domain
   result.sockType = sockType
