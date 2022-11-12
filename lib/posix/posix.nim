@@ -91,7 +91,8 @@ const
 type Sighandler = proc (a: cint) {.noconv.}
 
 const StatHasNanoseconds* = defined(linux) or defined(freebsd) or
-    defined(osx) or defined(openbsd) or defined(dragonfly) or defined(haiku) ## \
+    defined(osx) or defined(openbsd) or defined(dragonfly) or defined(haiku) or 
+    defined(orbis) ## \
   ## Boolean flag that indicates if the system supports nanosecond time
   ## resolution in the fields of `Stat`. Note that the nanosecond based fields
   ## (`Stat.st_atim`, `Stat.st_mtim` and `Stat.st_ctim`) can be accessed
@@ -110,6 +111,8 @@ elif defined(nintendoswitch):
   include posix_nintendoswitch
 elif defined(haiku):
   include posix_haiku
+elif defined(orbis):
+  include posix_orbis
 else:
   include posix_other
 
@@ -187,7 +190,11 @@ proc dlopen*(a1: cstring, a2: cint): pointer {.importc, header: "<dlfcn.h>", sid
 proc dlsym*(a1: pointer, a2: cstring): pointer {.importc, header: "<dlfcn.h>", sideEffect.}
 
 proc creat*(a1: cstring, a2: Mode): cint {.importc, header: "<fcntl.h>", sideEffect.}
-proc fcntl*(a1: cint | SocketHandle, a2: cint): cint {.varargs, importc, header: "<fcntl.h>", sideEffect.}
+when not defined(orbis):
+  proc fcntl*(a1: cint | SocketHandle, a2: cint): cint {.varargs, importc, header: "<fcntl.h>", sideEffect.}
+else:
+  proc fcntl*(a1: cint | SocketHandle, a2: cint): cint {.varargs, importc: "sceKernelFcntl", header: "<orbis/libkernel.h>", sideEffect.}
+
 proc openImpl(a1: cstring, a2: cint): cint {.varargs, importc: "open", header: "<fcntl.h>", sideEffect.}
 proc open*(a1: cstring, a2: cint, mode: Mode | cint = 0.Mode): cint {.inline.} =
   # prevents bug #17888
@@ -206,7 +213,7 @@ proc fnmatch*(a1, a2: cstring, a3: cint): cint {.importc, header: "<fnmatch.h>".
 proc ftw*(a1: cstring,
          a2: proc (x1: cstring, x2: ptr Stat, x3: cint): cint {.noconv.},
          a3: cint): cint {.importc, header: "<ftw.h>".}
-when not (defined(linux) and defined(amd64)) and not defined(nintendoswitch):
+when not (defined(linux) and defined(amd64)) and not defined(nintendoswitch) and not defined(orbis):
   proc nftw*(a1: cstring,
             a2: proc (x1: cstring, x2: ptr Stat,
                       x3: cint, x4: ptr FTW): cint {.noconv.},
@@ -621,7 +628,7 @@ proc fstatvfs*(a1: cint, a2: var Statvfs): cint {.
   importc, header: "<sys/statvfs.h>".}
 
 proc chmod*(a1: cstring, a2: Mode): cint {.importc, header: "<sys/stat.h>", sideEffect.}
-when defined(osx) or defined(freebsd):
+when defined(osx) or defined(freebsd) or defined(orbis):
   proc lchmod*(a1: cstring, a2: Mode): cint {.importc, header: "<sys/stat.h>", sideEffect.}
 proc fchmod*(a1: cint, a2: Mode): cint {.importc, header: "<sys/stat.h>", sideEffect.}
 proc fstat*(a1: cint, a2: var Stat): cint {.importc, header: "<sys/stat.h>", sideEffect.}
@@ -676,7 +683,7 @@ proc posix_madvise*(a1: pointer, a2: int, a3: cint): cint {.
 proc posix_mem_offset*(a1: pointer, a2: int, a3: var Off,
            a4: var int, a5: var cint): cint {.importc, header: "<sys/mman.h>".}
 when not (defined(linux) and defined(amd64)) and not defined(nintendoswitch) and
-     not defined(haiku):
+     not defined(haiku) and not defined(orbis):
   proc posix_typed_mem_get_info*(a1: cint,
     a2: var Posix_typed_mem_info): cint {.importc, header: "<sys/mman.h>".}
 proc posix_typed_mem_open*(a1: cstring, a2, a3: cint): cint {.
