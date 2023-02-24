@@ -23,6 +23,10 @@ when defined(openbsd) or defined(freebsd) or defined(netbsd):
     cpp = "cc -E -o $#.i $#.c"
     ccLinkMath = "cc -lm -o $# $#.c"
     cppLinkMath = "cc -lm -E -o $#.i $#.c"
+elif defined(orbis):
+  const
+    cc = "clang -isysroot /home/ac2pic/PS4Libs/OpenOrbis-PS4-Toolchain -isystem /home/ac2pic/PS4Libs/OpenOrbis-PS4-Toolchain/include -o $# $#.c "
+    cpp = "clang++ -isysroot /home/ac2pic/PS4Libs/OpenOrbis-PS4-Toolchain/ -isystem /home/ac2pic/PS4Libs/OpenOrbis-PS4-Toolchain/include/ -isystem /home/ac2pic/PS4Libs/OpenOrbis-PS4-Toolchain/include/c++/v1/ -o $# $#.c"
 else:
   const
     cc = "gcc -o $# $#.c"
@@ -92,10 +96,16 @@ proc main =
   const pre = "pre"
   var f: File
   if open(f, addFileExt(gen, "c"), fmWrite):
-    f.write(cfile % [hd, tl, system.hostOS, system.hostCPU])
+    when defined(orbis):
+      f.write(cfile % [hd, tl, "orbis", "amd64"])
+    else:
+      f.write(cfile % [hd, tl, system.hostOS, system.hostCPU])
     close(f)
   if open(f, addFileExt(pre, "c"), fmWrite):
-    f.write(cfile % [hd, tl, system.hostOS, system.hostCPU])
+    when defined(orbis):
+      f.write(cfile % [hd, tl, "orbis", "amd64"])
+    else:
+      f.write(cfile % [hd, tl, system.hostOS, system.hostCPU])
     close(f)
   if open(f, "other_consts.nim", fmWrite):
     f.write(nimfile % [other])
