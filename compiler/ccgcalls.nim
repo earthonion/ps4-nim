@@ -14,7 +14,8 @@ proc canRaiseDisp(p: BProc; n: PNode): bool =
   if n.kind == nkSym and {sfNeverRaises, sfImportc, sfCompilerProc} * n.sym.flags != {}:
     result = false
   elif optPanics in p.config.globalOptions or
-      (n.kind == nkSym and sfSystemModule in getModule(n.sym).flags):
+      (n.kind == nkSym and sfSystemModule in getModule(n.sym).flags and
+       sfSystemRaisesDefect notin n.sym.flags):
     # we know we can be strict:
     result = canRaise(n)
   else:
@@ -155,7 +156,7 @@ proc reifiedOpenArray(n: PNode): bool {.inline.} =
   else:
     result = true
 
-proc genOpenArraySlice(p: BProc; q: PNode; formalType, destType: PType): (Rope, Rope) =
+proc genOpenArraySlice(p: BProc; q: PNode; formalType, destType: PType; prepareForMutation = false): (Rope, Rope) =
   var a, b, c: TLoc
   initLocExpr(p, q[1], a)
   initLocExpr(p, q[2], b)
@@ -163,6 +164,8 @@ proc genOpenArraySlice(p: BProc; q: PNode; formalType, destType: PType): (Rope, 
   # but first produce the required index checks:
   if optBoundsCheck in p.options:
     genBoundsCheck(p, a, b, c)
+  if prepareForMutation:
+    linefmt(p, cpsStmts, "#nimPrepareStrMutationV2($1);$n", [byRefLoc(p, a)])
   let ty = skipTypes(a.t, abstractVar+{tyPtr})
   let dest = getTypeDesc(p.module, destType)
   let lengthExpr = "($1)-($2)+1" % [rdLoc(c), rdLoc(b)]
@@ -472,6 +475,7 @@ proc genClosureCall(p: BProc, le, ri: PNode, d: var TLoc) =
           discard "resetLoc(p, d)"
         pl.add(addrLoc(p.config, d))
         genCallPattern()
+        if canRaise: raiseExit(p)
       else:
         var tmp: TLoc
         getTemp(p, typ[0], tmp, needsInit=true)

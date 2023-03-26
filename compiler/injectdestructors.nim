@@ -17,12 +17,12 @@ import
   intsets, strtabs, ast, astalgo, msgs, renderer, magicsys, types, idents,
   strutils, options, lowerings, tables, modulegraphs,
   lineinfos, parampatterns, sighashes, liftdestructors, optimizer,
-  varpartitions, aliasanalysis, dfa
+  varpartitions, aliasanalysis, dfa, wordrecg
 
 when defined(nimPreviewSlimSystem):
   import std/assertions
 
-from trees import exprStructuralEquivalent, getRoot
+from trees import exprStructuralEquivalent, getRoot, whichPragma
 
 type
   Con = object
@@ -35,6 +35,7 @@ type
     idgen: IdGenerator
     body: PNode
     otherUsage: TLineInfo
+    inUncheckedAssignSection: int
 
   Scope = object # we do scope-based memory management.
     # a scope is comparable to an nkStmtListExpr like
@@ -217,7 +218,7 @@ proc genOp(c: var Con; t: PType; kind: TTypeAttachedOp; dest, ri: PNode): PNode 
   var op = getAttachedOp(c.graph, t, kind)
   if op == nil or op.ast.isGenericRoutine:
     # give up and find the canonical type instead:
-    let h = sighashes.hashType(t, {CoType, CoConsiderOwned, CoDistinct})
+    let h = sighashes.hashType(t, c.graph.config, {CoType, CoConsiderOwned, CoDistinct})
     let canon = c.graph.canonTypes.getOrDefault(h)
     if canon != nil:
       op = getAttachedOp(c.graph, canon, kind)
@@ -342,23 +343,31 @@ It is best to factor out piece of object that needs custom destructor into separ
       return
 
     # generate: if le != tmp: `=destroy`(le)
-    let branchDestructor = produceDestructorForDiscriminator(c.graph, objType, leDotExpr[1].sym, n.info, c.idgen)
-    let cond = newNodeIT(nkInfix, n.info, getSysType(c.graph, unknownLineInfo, tyBool))
-    cond.add newSymNode(getMagicEqSymForType(c.graph, le.typ, n.info))
-    cond.add le
-    cond.add tmp
-    let notExpr = newNodeIT(nkPrefix, n.info, getSysType(c.graph, unknownLineInfo, tyBool))
-    notExpr.add newSymNode(createMagic(c.graph, c.idgen, "not", mNot))
-    notExpr.add cond
-    result.add newTree(nkIfStmt, newTree(nkElifBranch, notExpr, c.genOp(branchDestructor, le)))
+    if c.inUncheckedAssignSection != 0:
+      let branchDestructor = produceDestructorForDiscriminator(c.graph, objType, leDotExpr[1].sym, n.info, c.idgen)
+      let cond = newNodeIT(nkInfix, n.info, getSysType(c.graph, unknownLineInfo, tyBool))
+      cond.add newSymNode(getMagicEqSymForType(c.graph, le.typ, n.info))
+      cond.add le
+      cond.add tmp
+      let notExpr = newNodeIT(nkPrefix, n.info, getSysType(c.graph, unknownLineInfo, tyBool))
+      notExpr.add newSymNode(createMagic(c.graph, c.idgen, "not", mNot))
+      notExpr.add cond
+      result.add newTree(nkIfStmt, newTree(nkElifBranch, notExpr, c.genOp(branchDestructor, le)))
   result.add newTree(nkFastAsgn, le, tmp)
 
 proc genWasMoved(c: var Con, n: PNode): PNode =
-  result = newNodeI(nkCall, n.info)
-  result.add(newSymNode(createMagic(c.graph, c.idgen, "wasMoved", mWasMoved)))
-  result.add copyTree(n) #mWasMoved does not take the address
-  #if n.kind != nkSym:
-  #  message(c.graph.config, n.info, warnUser, "wasMoved(" & $n & ")")
+  let typ = n.typ.skipTypes({tyGenericInst, tyAlias, tySink})
+  let op = getAttachedOp(c.graph, n.typ, attachedWasMoved)
+  if op != nil:
+    if sfError in op.flags:
+      c.checkForErrorPragma(n.typ, n, "=wasMoved")
+    result = genOp(c, op, n)
+  else:
+    result = newNodeI(nkCall, n.info)
+    result.add(newSymNode(createMagic(c.graph, c.idgen, "wasMoved", mWasMoved)))
+    result.add copyTree(n) #mWasMoved does not take the address
+    #if n.kind != nkSym:
+    #  message(c.graph.config, n.info, warnUser, "wasMoved(" & $n & ")")
 
 proc genDefaultCall(t: PType; c: Con; info: TLineInfo): PNode =
   result = newNodeI(nkCall, info)
@@ -829,7 +838,10 @@ proc p(n: PNode; c: var Con; s: var Scope; mode: ProcessMode; tmpFlags = {sfSing
             if ri.kind != nkEmpty:
               result.add moveOrCopy(v, ri, c, s, if v.kind == nkSym: {IsDecl} else: {})
             elif ri.kind == nkEmpty and c.inLoop > 0:
-              result.add moveOrCopy(v, genDefaultCall(v.typ, c, v.info), c, s, if v.kind == nkSym: {IsDecl} else: {})
+              let skipInit = v.kind == nkDotExpr and # Closure var
+                             sfNoInit in v[1].sym.flags
+              if not skipInit:
+                result.add moveOrCopy(v, genDefaultCall(v.typ, c, v.info), c, s, if v.kind == nkSym: {IsDecl} else: {})
         else: # keep the var but transform 'ri':
           var v = copyNode(n)
           var itCopy = copyNode(it)
@@ -867,10 +879,29 @@ proc p(n: PNode; c: var Con; s: var Scope; mode: ProcessMode; tmpFlags = {sfSing
        nkTypeOfExpr, nkMixinStmt, nkBindStmt:
       result = n
 
-    of nkStringToCString, nkCStringToString, nkChckRangeF, nkChckRange64, nkChckRange, nkPragmaBlock:
+    of nkStringToCString, nkCStringToString, nkChckRangeF, nkChckRange64, nkChckRange:
       result = shallowCopy(n)
       for i in 0 ..< n.len:
         result[i] = p(n[i], c, s, normal)
+      if n.typ != nil and hasDestructor(c, n.typ):
+        if mode == normal:
+          result = ensureDestruction(result, n, c, s)
+
+    of nkPragmaBlock:
+      var inUncheckedAssignSection = 0
+      let pragmaList = n[0]
+      for pi in pragmaList:
+        if whichPragma(pi) == wCast:
+          case whichPragma(pi[1])
+          of wUncheckedAssign:
+            inUncheckedAssignSection = 1
+          else:
+            discard
+      result = shallowCopy(n)
+      inc c.inUncheckedAssignSection, inUncheckedAssignSection
+      for i in 0 ..< n.len:
+        result[i] = p(n[i], c, s, normal)
+      dec c.inUncheckedAssignSection, inUncheckedAssignSection
       if n.typ != nil and hasDestructor(c, n.typ):
         if mode == normal:
           result = ensureDestruction(result, n, c, s)
