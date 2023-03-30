@@ -122,6 +122,33 @@ compiler nintendoSwitchGCC:
     props: {hasSwitchRange, hasComputedGoto, hasCpp, hasGcGuard, hasGnuAsm,
             hasAttribute})
 
+# 
+compiler orbisLLVM:
+  result = (
+    name: "orbis_clang",
+    objExt: "o",
+    optSpeed: "",
+    optSize: "",
+    compilerExe: "clang",
+    cppCompiler: "clang++",
+    compileTmpl: "--target=x86_64-pc-freebsd12-elf -funwind-tables -c $options $include -o $objfile $file",
+    buildGui: "",
+    buildDll: "",
+    buildLib: "",
+    linkerExe: "ld.lld",
+    linkTmpl: "$objfiles -o $exefile -m elf_x86_64 -pie --eh-frame-hdr  -lc -lkernel $options",
+    includeCmd: " -I",
+    linkDirCmd: " -L",
+    linkLibCmd: " -l$1",
+    debug: "",
+    pic: "-fPIC",
+
+    asmStmtFrmt: "__asm__($n$1$n);$n",
+    structStmtFmt: "$1 $3 $2",
+    produceAsm: "",
+    cppXsupport: "-isystem $OO_PS4_TOOLCHAIN/include/c++/v1",
+    props: {hasCpp, hasAttribute})
+
 # LLVM Frontend for GCC/G++
 compiler llvmGcc:
   result = gcc() # Uses settings from GCC
@@ -274,6 +301,7 @@ const
   CC*: array[succ(low(TSystemCC))..high(TSystemCC), TInfoCC] = [
     gcc(),
     nintendoSwitchGCC(),
+    orbisLLVM(),
     llvmGcc(),
     clang(),
     bcc(),
