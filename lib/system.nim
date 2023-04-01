@@ -2705,6 +2705,14 @@ when notJSnotNims:
       for arg in args:
         s.add arg
       android_log_print(ANDROID_LOG_VERBOSE, "nim", s)
+    when defined(orbis):
+      proc sceKernelDebugOutText(dbg_chan: cint, text: cstring): cint 
+       {.importc, header: "<orbis/libkernel.h>", varargs, discardable.}
+      var s = ""
+      for arg in args:
+        s.add arg
+      s.add('\n')
+      sceKernelDebugOutText(0, s)
     else:
       # flockfile deadlocks some versions of Android 5.x.x
       when stdOutLock:
