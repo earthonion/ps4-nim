@@ -54,7 +54,7 @@ elif defined(genode):
 
 
 else:
-  when not (defined(macosx) or defined(haiku)):
+  when not (defined(macosx) or defined(haiku) or defined(orbis)):
     {.passl: "-pthread".}
 
   when not defined(haiku):
