@@ -255,7 +255,7 @@ iterator walkDir*(dir: string; relative = false, checkDir = false,
               elif skipSpecial and not S_ISREG(s.st_mode): continue
 
             when defined(linux) or defined(macosx) or
-                 defined(bsd) or defined(genode) or defined(nintendoswitch):
+                 defined(bsd) or defined(genode) or defined(nintendoswitch) or defined(orbis):
               case x.d_type
               of DT_DIR: k = pcDir
               of DT_LNK:
