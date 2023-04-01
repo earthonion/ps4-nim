@@ -19,7 +19,7 @@ const
 # On Linux:
 # timer_{create,delete,settime,gettime},
 # clock_{getcpuclockid, getres, gettime, nanosleep, settime} lives in librt
-{.passl: "-lrt".}
+{.passl: "-lrt -lSceNet".}
 
 when defined(nimHasStyleChecks):
   {.push styleChecks: off.}
