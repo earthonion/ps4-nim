@@ -732,6 +732,9 @@ proc setBlocking*(s: SocketHandle, blocking: bool) =
       raiseOSError(osLastError())
     else:
       var mode = if blocking: x and not O_NONBLOCK else: x or O_NONBLOCK
+      if x and O_NONBLOCK == O_NONBLOCK: 
+        # F_SETFL is a privileged operation in orbis
+        return
       if fcntl(s, F_SETFL, mode) == -1:
         raiseOSError(osLastError())
 

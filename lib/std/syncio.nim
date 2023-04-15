@@ -710,7 +710,7 @@ proc open*(f: var File, filename: string,
       if c_fstat(getFileHandle(f2), res) >= 0'i32 and modeIsDir(res.st_mode):
         close(f2)
         return false
-    when not defined(nimInheritHandles) and declared(setInheritable) and
+    when not defined(orbis) and not defined(nimInheritHandles) and declared(setInheritable) and
          NoInheritFlag.len == 0:
       if not setInheritable(getOsFileHandle(f2), false):
         close(f2)
