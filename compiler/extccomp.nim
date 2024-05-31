@@ -136,7 +136,7 @@ compiler orbisLLVM:
     buildDll: "",
     buildLib: "",
     linkerExe: "ld.lld",
-    linkTmpl: "$objfiles -o $exefile -m elf_x86_64 -pie --eh-frame-hdr  -lc -lkernel $options",
+    linkTmpl: "$objfiles -o $exefile -m elf_x86_64 -pie --eh-frame-hdr -lc -lkernel $options",
     includeCmd: " -I",
     linkDirCmd: " -L",
     linkLibCmd: " -l$1",

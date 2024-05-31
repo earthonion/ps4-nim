@@ -732,11 +732,18 @@ proc setBlocking*(s: SocketHandle, blocking: bool) =
       raiseOSError(osLastError())
     else:
       var mode = if blocking: x and not O_NONBLOCK else: x or O_NONBLOCK
-      if x and O_NONBLOCK == O_NONBLOCK: 
-        # F_SETFL is a privileged operation in orbis
-        return
-      if fcntl(s, F_SETFL, mode) == -1:
-        raiseOSError(osLastError())
+      when defined(orbis):
+        var ret = fcntl(s, F_SETFL, mode)
+        if ret < 0:
+          asm """
+            "mov %0, %%eax;"
+            "int $0x3;"
+            :
+            :"r"(`ret`)
+          """
+      else:
+        if fcntl(s, F_SETFL, mode) == -1:
+          raiseOSError(osLastError())
 
 proc timeValFromMilliseconds(timeout = 500): Timeval =
   if timeout != -1:

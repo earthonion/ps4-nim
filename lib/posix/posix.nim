@@ -190,8 +190,10 @@ proc dlopen*(a1: cstring, a2: cint): pointer {.importc, header: "<dlfcn.h>", sid
 proc dlsym*(a1: pointer, a2: cstring): pointer {.importc, header: "<dlfcn.h>", sideEffect.}
 
 proc creat*(a1: cstring, a2: Mode): cint {.importc, header: "<fcntl.h>", sideEffect.}
-proc fcntl*(a1: cint | SocketHandle, a2: cint): cint {.varargs, importc, header: "<fcntl.h>", sideEffect.}
-
+when not defined(orbis):
+  proc fcntl*(a1: cint | SocketHandle, a2: cint): cint {.varargs, importc, header: "<fcntl.h>", sideEffect.}
+else:
+  proc fcntl*(a1: cint | SocketHandle, a2: cint): cint {.varargs, importc: "sceKernelFcntl", header: "<orbis/libkernel.h>", sideEffect.}
 proc openImpl(a1: cstring, a2: cint): cint {.varargs, importc: "open", header: "<fcntl.h>", sideEffect.}
 
 proc open*(a1: cstring, a2: cint, mode: Mode | cint = 0.Mode): cint {.inline.} =
