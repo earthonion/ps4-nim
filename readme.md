@@ -1,6 +1,6 @@
 # PS4 Nim (Orbis Target Support)
-
-> **Note:** This is a re-upload of the OpenOrbis-Nim/Nim project. The original repository was deleted but was licensed under the GPL, so we are redistributing it here.
+> [!NOTE]
+>  This is a re-upload of the OpenOrbis-Nim/Nim project. The original repository was deleted but was licensed under the GPL, so we are redistributing it here.
 
 This is a fork of the [Nim](https://nim-lang.org/) compiler with added support for the PS4 (Orbis) target. It enables cross-compilation of Nim code to run as PS4 homebrew applications using the [OpenOrbis PS4 Toolchain](https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain).
 
