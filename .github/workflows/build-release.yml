@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,8 +21,7 @@ jobs:
       run: sh build_all.sh
 
     - name: Package binaries
-      run: |
-        tar czf ps4nim-linux-x64.tar.gz bin/ lib/ config/
+      run: tar czf ps4nim-linux-x64.tar.gz bin/ lib/ config/
 
     - name: Create or update release
       run: |
