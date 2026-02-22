@@ -1,0 +1,32 @@
+name: Build and Release PS4 Nim
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y build-essential
+
+    - name: Build PS4 Nim
+      run: sh build_all.sh
+
+    - name: Package binaries
+      run: |
+        tar czf ps4nim-linux-x64.tar.gz bin/ lib/ config/
+
+    - name: Create or update release
+      run: |
+        gh release delete latest --yes 2>/dev/null || true
+        gh release create latest ps4nim-linux-x64.tar.gz \
+          --title "PS4 Nim (latest)" \
+          --notes "Pre-built PS4 Nim compiler for Linux x64. Built from $(git rev-parse --short HEAD)." \
+          --prerelease
+      env:
+        GH_TOKEN: ${{ github.token }}
